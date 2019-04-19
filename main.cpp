@@ -71,34 +71,6 @@ void freeArray2D(double **array2D, size_t rows, size_t cols)
     delete[] array2D;
 }
 
-void print2D(double **array2D, size_t rows, size_t cols)
-{
-    for (size_t i = 0; i < rows; ++i)
-    {
-        for (size_t j = 0; j < cols; ++j)
-        {
-            std::cout << std::setw(2) << array2D[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
-void toFile(double **array2D, size_t rows, size_t cols)
-{
-    std::ofstream outStream("result.txt", std::ios_base::out);
-    // outStream << rows << " " << cols << std::endl;
-    for (size_t i = 0; i < rows; ++i)
-    {
-        for (size_t j = 0; j < cols; ++j)
-        {
-            outStream << array2D[i][j];
-            if (j != cols - 1)
-                outStream << " ";
-        }
-        outStream << std::endl;
-    }
-    outStream.close();
-}
 
 int main(int argc, char *argv[])
 {
@@ -111,27 +83,6 @@ int main(int argc, char *argv[])
     double h = step(N);  //шаг
     double eps = 0.0001; //точность
 
-    int opt;
-    while ((opt = getopt(argc, argv, "n:e")) != -1)
-    {
-        switch (opt)
-        {
-        case 'n':
-        {
-            N = std::atoi(optarg);
-            h = step(N);
-            break;
-        }
-        case 'e':
-        {
-            eps = std::atof(optarg);
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
     MPI_Comm_rank(MPI_COMM_WORLD, &ProcRank);
     MPI_Comm_size(MPI_COMM_WORLD, &ProcSize);
 
@@ -139,10 +90,6 @@ int main(int argc, char *argv[])
 
     double **u = makeArray2D(N + 2, N + 2); //выделение памяти под аппроксимирующую матрицу u
 
-    if (ProcRank == 0)
-    {
-        first_approx_u(u, N, h); //заполнение начальными значениями на 0 ранге процессоров
-    }
 
     const int M = N / ProcSize;                   //количество отправлямых строк матрицы u на 1 узел кластера
     int *displs_Scatterv = new int[ProcSize];     //смещение для отправляемых строк
@@ -158,7 +105,7 @@ int main(int argc, char *argv[])
         displs_Gatherv[i] = i * M * (N + 2) + (N + 2); //расчет смещения для принимаемых лент в матрицу u
         sendcounts_Gatherv[i] = M * (N + 2);           //расчет кол-ва принимаемых строк в ленте в матрицу u
     }
-    //в sendcounts_Scatterv и sendcounts_Gatherv разные формулы т.к если оставить их одинаковыми, то при сборе результата(Gatherv) мы будем получать неверную матрицу
+    
     double **locMat = makeArray2D(M + 2, N + 2); //выделение памяти под локальный массив в котором будут храниться отправленные строки
     double u0, lMax, dMax;                       //u0 для хранения предидущей итерации, lMax для хранения локального максимума на каждом узле, dMax - общий максимум
 
@@ -189,8 +136,6 @@ int main(int argc, char *argv[])
         MPI_Barrier(MPI_COMM_WORLD); // Синхронизация процессов чтобы они все получили и сравнили свои локальные максимумы с глобальными
     } while (dMax > eps);            //критерий останова, расчеты будут выполнятся до тех пор пока дельта между глобальным максимумом и локальным не будет превышать точность
 
-    if (ProcRank == 0)
-        toFile(u, N + 2, N + 2); // запись в файл на главном узле(мастере)
 
     //уборка мусора
     delete[] displs_Scatterv;
