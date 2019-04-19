@@ -86,10 +86,7 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &ProcRank);
     MPI_Comm_size(MPI_COMM_WORLD, &ProcSize);
 
-    std::ofstream DEBUG_FILE("out-" + std::to_string(ProcRank) + ".txt", std::ios_base::out);
-
     double **u = makeArray2D(N + 2, N + 2); //выделение памяти под аппроксимирующую матрицу u
-
 
     const int M = N / ProcSize;                   //количество отправлямых строк матрицы u на 1 узел кластера
     int *displs_Scatterv = new int[ProcSize];     //смещение для отправляемых строк
